@@ -1,0 +1,87 @@
+The main goal of coroutines is to "simplify asynchronous work by getting rid of callbacks." Coroutines are NOT threads. I like to think of coroutines as JOBS. And each "job" may contain "child jobs". Jobs that can run in any thread. Many coroutines can run in a single thread at once.
+
+They're kind of "like" threads because you can start them up and do work asynchronously, but they aren't threads. Many coroutines can exist and be running in a single thread. 
+
+The main dispatchers for building coroutines is:
+1) Default (CPU intensive work)
+2) Main (UI Interactions)
+3) IO (Input/output. ex: network or disk transactions)
+
+
+    // This fun can be called in a coroutine and executed on bg thread. in fact coroutine != Thread, bc many of them can exist inside of a Thread and be executing
+    
+    package com.codingwithmitch.coroutineexamples
+
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
+
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        button.setOnClickListener {
+            setNewText("Click!")
+
+            CoroutineScope(IO).launch {
+                fakeApiRequest()
+            }
+        }
+        
+    }
+
+    private fun setNewText(input: String){
+        val newText = text.text.toString() + "\n$input"
+        text.text = newText
+    }
+    private suspend fun setTextOnMainThread(input: String) {
+        withContext (Main) {
+            setNewText(input)
+        }
+    }
+
+    private suspend fun fakeApiRequest() {
+        logThread("fakeApiRequest")
+
+        val result1 = getResult1FromApi() // wait until job is done
+
+        if ( result1.equals("Result #1")) {
+
+            setTextOnMainThread("Got $result1")
+
+            val result2 = getResult2FromApi() // wait until job is done
+
+            if (result2.equals("Result #2")) {
+                setTextOnMainThread("Got $result2")
+            } else {
+                setTextOnMainThread("Couldn't get Result #2")
+            }
+        } else {
+            setTextOnMainThread("Couldn't get Result #1")
+        }
+    }
+
+
+    private suspend fun getResult1FromApi(): String {
+        logThread("getResult1FromApi")
+        delay(1000) // Does not block thread. Just suspends the coroutine inside the thread
+        return "Result #1"
+    }
+
+    private suspend fun getResult2FromApi(): String {
+        logThread("getResult2FromApi")
+        delay(1000)
+        return "Result #2"
+    }
+
+    private fun logThread(methodName: String){
+        println("debug: ${methodName}: ${Thread.currentThread().name}")
+    }
+
+}
